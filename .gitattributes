@@ -1,0 +1,5 @@
+# Normalize all text files to LF line endings regardless of OS checkout settings
+* text=auto eol=lf
+
+# Shell scripts must stay LF or bash on the EC2 targets will fail to execute them
+*.sh text eol=lf
