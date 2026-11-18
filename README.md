@@ -866,7 +866,7 @@ PGPASSWORD='yourpassword' psql -U bmi_user -d bmidb -h <db-private-ip> -p 5432 -
 Common causes:
 - Wrong `DB_PRIVATE_IP` in `.env`
 - Wrong `DB_PASSWORD` in `.env`
-- PostgreSQL `pg_hba.conf` not updated for `10.0.2.0/24` (re-run `DB-auto.sh`)
+- PostgreSQL `pg_hba.conf` not allowing the backend's subnet (re-run `DB-auto.sh`, or set `PRIVATE_CIDR` to your VPC CIDR)
 - PostgreSQL `listen_addresses` not set to `*` (re-run `DB-auto.sh`)
 
 ---

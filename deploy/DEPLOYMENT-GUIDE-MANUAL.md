@@ -833,7 +833,7 @@ Write-Host "============================================================"
 4. Enables and starts the PostgreSQL service
 5. Locates `postgresql.conf` and `pg_hba.conf` dynamically (version-independent)
 6. Sets `listen_addresses = '*'` so the backend EC2 can connect
-7. Adds `pg_hba.conf` entry: `host bmidb bmi_user 10.0.2.0/24 scram-sha-256`
+7. Adds `pg_hba.conf` entry: `host bmidb bmi_user 10.0.0.0/16 scram-sha-256` (override with `PRIVATE_CIDR`)
 8. Restarts PostgreSQL to apply changes
 9. Creates PostgreSQL role `bmi_user` with provided password (idempotent — updates if exists)
 10. Creates database `bmidb` owned by `bmi_user` (idempotent — skips if exists)
@@ -915,7 +915,7 @@ sudo -E bash /tmp/DB-auto.sh
     [OK] listen_addresses = '*' set
 
 ==> [4/7] Configuring pg_hba.conf for private subnet access...
-    [OK] pg_hba.conf updated: bmi_user@10.0.2.0/24 → scram-sha-256
+    [OK] pg_hba.conf updated: bmi_user@10.0.0.0/16 → scram-sha-256
     [OK] PostgreSQL restarted
 
 ==> [5/7] Creating database user 'bmi_user' and database 'bmidb'...

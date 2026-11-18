@@ -8,6 +8,9 @@
 # REQUIRED environment variables (export before running):
 #   DB_PASSWORD   — password for the bmi_user PostgreSQL account
 #
+# OPTIONAL environment variables:
+#   PRIVATE_CIDR  — client CIDR allowed in pg_hba.conf (default: 10.0.0.0/16, the whole VPC)
+#
 # Usage:
 #   export DB_PASSWORD='YourStr0ngP@ssword'
 #   sudo -E bash DB-auto.sh
@@ -16,7 +19,7 @@
 #   1. System update
 #   2. Install PostgreSQL 16 (native in Ubuntu 24.04 repos)
 #   3. Configure listen_addresses = '*'
-#   4. Configure pg_hba.conf for private subnet (10.0.2.0/24)
+#   4. Configure pg_hba.conf for the VPC client CIDR (default 10.0.0.0/16)
 #   5. Create database user bmi_user + database bmidb
 #   6. Clone repo and run SQL migrations
 #   7. Verify schema and print DATABASE_URL for backend-auto.sh
@@ -40,7 +43,7 @@ die()  { echo -e "${RED}    [ERROR]${NC} $*" >&2; exit 1; }
 # ── Configuration ────────────────────────────────────────────────────────────
 DB_USER="bmi_user"
 DB_NAME="bmidb"
-PRIVATE_CIDR="10.0.2.0/24"
+PRIVATE_CIDR="${PRIVATE_CIDR:-10.0.0.0/16}"
 REPO_URL="https://github.com/sarowar-alam/multi-server-private-3tier-webapp.git"
 APP_DIR="/opt/bmi-app"
 
