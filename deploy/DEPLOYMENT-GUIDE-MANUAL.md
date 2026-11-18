@@ -4,9 +4,9 @@
 > For the automated single-command approach using `setup-aws.ps1`, see [`DEPLOYMENT-GUIDE-AUTO.md`](DEPLOYMENT-GUIDE-AUTO.md).
 
 **Application:** BMI & Health Tracker (React → Node.js/Express → PostgreSQL)  
-**Domain:** `bmi.ostaddevops.click`  
+**Domain:** `bmi.sarowar.xyz`  
 **Region:** `ap-south-1` (Mumbai)  
-**AWS Profile:** `sarowar-ostad`  
+**AWS Profile:** `sarowar-own`  
 **Repository:** https://github.com/sarowar-alam/multi-server-private-3tier-webapp.git
 
 ---
@@ -40,7 +40,7 @@ Internet
     │  HTTP  :80  → 301 redirect to HTTPS
     ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Route53 — bmi.ostaddevops.click (A alias → ALB DNS)    │
+│  Route53 — bmi.sarowar.xyz (A alias → ALB DNS)          │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
@@ -55,7 +55,7 @@ Internet
        │                         │
        │ HTTP :80                │ HTTP :3000
        ▼                         ▼
-┌─────────────┐        ┌──────────────────────┐
+┌─────────────┐        ┌───────────────────────┐
 │ Frontend EC2│        │  Backend EC2          │
 │ Nginx :80   │        │  Node.js + PM2 :3000  │
 │ React SPA   │        │  Express API          │
@@ -105,16 +105,16 @@ They reach the internet (apt, npm, git, SSM) through the NAT Gateway.
 
 ### 2.2 AWS CLI Named Profile
 
-These manual steps use the named profile `sarowar-ostad`. Verify it exists:
+These manual steps use the named profile `sarowar-own`. Verify it exists:
 
 ```powershell
-aws configure list --profile sarowar-ostad
+aws configure list --profile sarowar-own
 ```
 
 Expected output shows `access_key`, `secret_key`, and `region`. If missing, configure it:
 
 ```powershell
-aws configure --profile sarowar-ostad
+aws configure --profile sarowar-own
 # AWS Access Key ID:     <your-key>
 # AWS Secret Access Key: <your-secret>
 # Default region name:   ap-south-1
@@ -124,26 +124,26 @@ aws configure --profile sarowar-ostad
 Verify connectivity:
 
 ```powershell
-aws sts get-caller-identity --profile sarowar-ostad
+aws sts get-caller-identity --profile sarowar-own
 ```
 
 This should return your AWS account ID and IAM user/role ARN.
 
 ### 2.3 EC2 Key Pair
 
-These steps use the key pair `sarowar-ostad-mumbai`. Verify it exists in `ap-south-1`:
+These steps use the key pair `sarowar-own`. Verify it exists in `ap-south-1`:
 
 ```powershell
-aws ec2 describe-key-pairs --key-names sarowar-ostad-mumbai `
-  --profile sarowar-ostad --region ap-south-1
+aws ec2 describe-key-pairs --key-names sarowar-own `
+  --profile sarowar-own --region ap-south-1
 ```
 
 If it doesn't exist, create one:
 
 ```powershell
-aws ec2 create-key-pair --key-name sarowar-ostad-mumbai `
+aws ec2 create-key-pair --key-name sarowar-own `
   --query "KeyMaterial" --output text `
-  --profile sarowar-ostad --region ap-south-1 > sarowar-ostad-mumbai.pem
+  --profile sarowar-own --region ap-south-1 > sarowar-own.pem
 ```
 
 > **Note:** The key pair is attached as an emergency fallback. Actual access is via SSM Session Manager — no port 22 is opened.
@@ -153,23 +153,23 @@ aws ec2 create-key-pair --key-name sarowar-ostad-mumbai `
 The certificate must already exist in `ap-south-1` (it does — provided in requirements):
 
 ```
-arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0
+arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39
 ```
 
 Verify its status:
 
 ```powershell
 aws acm describe-certificate `
-  --certificate-arn "arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0" `
+  --certificate-arn "arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39" `
   --query "Certificate.Status" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Expected: `ISSUED`
 
 ### 2.5 Required IAM Permissions for the Deploying User
 
-Your `sarowar-ostad` IAM user/role needs permissions for:
+Your `sarowar-own` IAM user/role needs permissions for:
 
 - `ec2:*` (VPC, subnets, SGs, instances, IGW, NAT, route tables, EIP)
 - `elasticloadbalancing:*` (ALB, listeners, target groups)
@@ -221,7 +221,7 @@ VPC: 10.0.0.0/16  (bmi-app-vpc)
 | Backend | bmi-app-backend | private | sg-backend | 20 GB gp3 |
 | Database | bmi-app-db | private | sg-db | 30 GB gp3 |
 
-All instances: `t3.medium`, Ubuntu 24.04 LTS, key pair `sarowar-ostad-mumbai`, IAM profile with `AmazonSSMManagedInstanceCore`.
+All instances: `t3.medium`, Ubuntu 24.04 LTS, key pair `sarowar-own`, IAM profile with `AmazonSSMManagedInstanceCore`.
 
 ---
 
@@ -296,7 +296,7 @@ This phase creates all AWS infrastructure through 15 sequential steps:
 11. 2 Target Groups + register EC2s
 12. ALB → waits for `active` (~2 min)
 13. HTTP:80 listener (301 redirect) + HTTPS:443 listener with path rules
-14. Route53 hosted zone + A alias record
+14. Route53 A alias record in the existing `sarowar.xyz` hosted zone
 15. Resource summary — note all IDs for subsequent phases
 
 **Estimated time:** ~10–15 minutes (most is waiting for NAT GW and ALB).
@@ -316,7 +316,7 @@ At the end of Step 15, record all values in the summary table — you will need 
 $AMI_ID = aws ssm get-parameter `
   --name "/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id" `
   --query "Parameter.Value" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "AMI: $AMI_ID"
 ```
@@ -332,13 +332,13 @@ $VPC_ID = aws ec2 create-vpc `
   --cidr-block 10.0.0.0/16 `
   --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=bmi-app-vpc}]' `
   --query "Vpc.VpcId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Enable DNS hostnames (required for SSM)
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID --enable-dns-hostnames `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 aws ec2 modify-vpc-attribute --vpc-id $VPC_ID --enable-dns-support `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "VPC: $VPC_ID"
 ```
@@ -351,11 +351,11 @@ Write-Host "VPC: $VPC_ID"
 $IGW_ID = aws ec2 create-internet-gateway `
   --tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=bmi-app-igw}]' `
   --query "InternetGateway.InternetGatewayId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 aws ec2 attach-internet-gateway `
   --internet-gateway-id $IGW_ID --vpc-id $VPC_ID `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "IGW: $IGW_ID"
 ```
@@ -371,7 +371,7 @@ $PUB1_ID = aws ec2 create-subnet `
   --availability-zone ap-south-1a `
   --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=bmi-app-pub-1a}]' `
   --query "Subnet.SubnetId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Public Subnet 2 — ap-south-1b (ALB 2nd AZ only)
 $PUB2_ID = aws ec2 create-subnet `
@@ -379,7 +379,7 @@ $PUB2_ID = aws ec2 create-subnet `
   --availability-zone ap-south-1b `
   --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=bmi-app-pub-1b}]' `
   --query "Subnet.SubnetId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Private Subnet — ap-south-1a (all 3 EC2s)
 $PRIV_ID = aws ec2 create-subnet `
@@ -387,7 +387,7 @@ $PRIV_ID = aws ec2 create-subnet `
   --availability-zone ap-south-1a `
   --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=bmi-app-priv-1a}]' `
   --query "Subnet.SubnetId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "Subnets: pub1=$PUB1_ID  pub2=$PUB2_ID  priv=$PRIV_ID"
 ```
@@ -400,18 +400,18 @@ Write-Host "Subnets: pub1=$PUB1_ID  pub2=$PUB2_ID  priv=$PRIV_ID"
 $PUB_RT_ID = aws ec2 create-route-table --vpc-id $VPC_ID `
   --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=bmi-app-pub-rt}]' `
   --query "RouteTable.RouteTableId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Add default route to Internet Gateway
 aws ec2 create-route --route-table-id $PUB_RT_ID `
   --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW_ID `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 # Associate with both public subnets
 aws ec2 associate-route-table --route-table-id $PUB_RT_ID --subnet-id $PUB1_ID `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 aws ec2 associate-route-table --route-table-id $PUB_RT_ID --subnet-id $PUB2_ID `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 Write-Host "Public RT: $PUB_RT_ID"
 ```
@@ -425,18 +425,18 @@ Write-Host "Public RT: $PUB_RT_ID"
 $EIP_ALLOC = aws ec2 allocate-address --domain vpc `
   --tag-specifications 'ResourceType=elastic-ip,Tags=[{Key=Name,Value=bmi-app-eip}]' `
   --query "AllocationId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Create NAT Gateway in public subnet 1
 $NAT_ID = aws ec2 create-nat-gateway `
   --subnet-id $PUB1_ID --allocation-id $EIP_ALLOC `
   --tag-specifications 'ResourceType=natgateway,Tags=[{Key=Name,Value=bmi-app-nat}]' `
   --query "NatGateway.NatGatewayId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "NAT Gateway $NAT_ID created. Waiting for 'available' state (~2 min)..."
 aws ec2 wait nat-gateway-available --nat-gateway-ids $NAT_ID `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 Write-Host "NAT Gateway: $NAT_ID  EIP: $EIP_ALLOC"
 ```
 
@@ -448,16 +448,16 @@ Write-Host "NAT Gateway: $NAT_ID  EIP: $EIP_ALLOC"
 $PRIV_RT_ID = aws ec2 create-route-table --vpc-id $VPC_ID `
   --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=bmi-app-priv-rt}]' `
   --query "RouteTable.RouteTableId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Add default route to NAT Gateway
 aws ec2 create-route --route-table-id $PRIV_RT_ID `
   --destination-cidr-block 0.0.0.0/0 --nat-gateway-id $NAT_ID `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 # Associate with private subnet
 aws ec2 associate-route-table --route-table-id $PRIV_RT_ID --subnet-id $PRIV_ID `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 Write-Host "Private RT: $PRIV_RT_ID"
 ```
@@ -472,53 +472,53 @@ $SG_ALB = aws ec2 create-security-group `
   --group-name bmi-app-sg-alb --description "BMI App ALB" --vpc-id $VPC_ID `
   --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=sg-alb}]' `
   --query "GroupId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 aws ec2 authorize-security-group-ingress --group-id $SG_ALB `
   --ip-permissions '[{"IpProtocol":"tcp","FromPort":80,"ToPort":80,"IpRanges":[{"CidrIp":"0.0.0.0/0"}]},{"IpProtocol":"tcp","FromPort":443,"ToPort":443,"IpRanges":[{"CidrIp":"0.0.0.0/0"}]}]' `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 # ── sg-frontend ──────────────────────────────────────────────────────────────
 $SG_FE = aws ec2 create-security-group `
   --group-name bmi-app-sg-frontend --description "BMI Frontend EC2" --vpc-id $VPC_ID `
   --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=sg-frontend}]' `
   --query "GroupId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 @"
 [{"IpProtocol":"tcp","FromPort":80,"ToPort":80,"UserIdGroupPairs":[{"GroupId":"$SG_ALB"}]}]
 "@ | Out-File "$env:TEMP\sg-fe.json" -Encoding ascii
 aws ec2 authorize-security-group-ingress --group-id $SG_FE `
   --ip-permissions "file://$env:TEMP\sg-fe.json" `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 # ── sg-backend ───────────────────────────────────────────────────────────────
 $SG_BE = aws ec2 create-security-group `
   --group-name bmi-app-sg-backend --description "BMI Backend EC2" --vpc-id $VPC_ID `
   --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=sg-backend}]' `
   --query "GroupId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 @"
 [{"IpProtocol":"tcp","FromPort":3000,"ToPort":3000,"UserIdGroupPairs":[{"GroupId":"$SG_ALB"}]}]
 "@ | Out-File "$env:TEMP\sg-be.json" -Encoding ascii
 aws ec2 authorize-security-group-ingress --group-id $SG_BE `
   --ip-permissions "file://$env:TEMP\sg-be.json" `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 # ── sg-db ────────────────────────────────────────────────────────────────────
 $SG_DB = aws ec2 create-security-group `
   --group-name bmi-app-sg-db --description "BMI DB EC2" --vpc-id $VPC_ID `
   --tag-specifications 'ResourceType=security-group,Tags=[{Key=Name,Value=sg-db}]' `
   --query "GroupId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 @"
 [{"IpProtocol":"tcp","FromPort":5432,"ToPort":5432,"UserIdGroupPairs":[{"GroupId":"$SG_BE"}]}]
 "@ | Out-File "$env:TEMP\sg-db.json" -Encoding ascii
 aws ec2 authorize-security-group-ingress --group-id $SG_DB `
   --ip-permissions "file://$env:TEMP\sg-db.json" `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 Write-Host "SGs: alb=$SG_ALB  fe=$SG_FE  be=$SG_BE  db=$SG_DB"
 ```
@@ -535,19 +535,19 @@ Write-Host "SGs: alb=$SG_ALB  fe=$SG_FE  be=$SG_BE  db=$SG_DB"
 
 aws iam create-role --role-name bmi-ssm-role `
   --assume-role-policy-document "file://$env:TEMP\trust.json" `
-  --profile sarowar-ostad | Out-Null
+  --profile sarowar-own | Out-Null
 
 aws iam attach-role-policy --role-name bmi-ssm-role `
   --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore `
-  --profile sarowar-ostad
+  --profile sarowar-own
 
 aws iam create-instance-profile `
   --instance-profile-name bmi-ssm-profile `
-  --profile sarowar-ostad | Out-Null
+  --profile sarowar-own | Out-Null
 
 aws iam add-role-to-instance-profile `
   --instance-profile-name bmi-ssm-profile --role-name bmi-ssm-role `
-  --profile sarowar-ostad
+  --profile sarowar-own
 
 # Wait for IAM propagation before launching EC2s
 Write-Host "Waiting 15s for IAM profile to propagate..."
@@ -574,54 +574,54 @@ $FRONTEND_ID = aws ec2 run-instances `
   --image-id $AMI_ID --instance-type t3.medium `
   --subnet-id $PRIV_ID --security-group-ids $SG_FE `
   --iam-instance-profile Name=bmi-ssm-profile `
-  --key-name sarowar-ostad-mumbai `
+  --key-name sarowar-own `
   --user-data $USER_DATA_B64 `
   --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":20,"VolumeType":"gp3"}}]' `
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=bmi-app-frontend}]' `
   --query "Instances[0].InstanceId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # ── Backend EC2 ──────────────────────────────────────────────────────────────
 $BACKEND_ID = aws ec2 run-instances `
   --image-id $AMI_ID --instance-type t3.medium `
   --subnet-id $PRIV_ID --security-group-ids $SG_BE `
   --iam-instance-profile Name=bmi-ssm-profile `
-  --key-name sarowar-ostad-mumbai `
+  --key-name sarowar-own `
   --user-data $USER_DATA_B64 `
   --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":20,"VolumeType":"gp3"}}]' `
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=bmi-app-backend}]' `
   --query "Instances[0].InstanceId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # ── Database EC2 ─────────────────────────────────────────────────────────────
 $DB_ID = aws ec2 run-instances `
   --image-id $AMI_ID --instance-type t3.medium `
   --subnet-id $PRIV_ID --security-group-ids $SG_DB `
   --iam-instance-profile Name=bmi-ssm-profile `
-  --key-name sarowar-ostad-mumbai `
+  --key-name sarowar-own `
   --user-data $USER_DATA_B64 `
   --block-device-mappings '[{"DeviceName":"/dev/sda1","Ebs":{"VolumeSize":30,"VolumeType":"gp3"}}]' `
   --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=bmi-app-db}]' `
   --query "Instances[0].InstanceId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "Instances launched: frontend=$FRONTEND_ID  backend=$BACKEND_ID  db=$DB_ID"
 Write-Host "Waiting for all instances to reach 'running' state..."
 
 aws ec2 wait instance-running `
   --instance-ids $FRONTEND_ID $BACKEND_ID $DB_ID `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Retrieve private IPs
 $FRONTEND_IP = aws ec2 describe-instances --instance-ids $FRONTEND_ID `
   --query "Reservations[0].Instances[0].PrivateIpAddress" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 $BACKEND_IP = aws ec2 describe-instances --instance-ids $BACKEND_ID `
   --query "Reservations[0].Instances[0].PrivateIpAddress" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 $DB_IP = aws ec2 describe-instances --instance-ids $DB_ID `
   --query "Reservations[0].Instances[0].PrivateIpAddress" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "Running. IPs: frontend=$FRONTEND_IP  backend=$BACKEND_IP  db=$DB_IP"
 ```
@@ -638,7 +638,7 @@ $TG_FE_ARN = aws elbv2 create-target-group `
   --health-check-path "/" --health-check-interval-seconds 30 `
   --healthy-threshold-count 2 --unhealthy-threshold-count 3 `
   --query "TargetGroups[0].TargetGroupArn" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Backend Target Group — port 3000, health check /health
 $TG_BE_ARN = aws elbv2 create-target-group `
@@ -647,15 +647,15 @@ $TG_BE_ARN = aws elbv2 create-target-group `
   --health-check-path "/health" --health-check-interval-seconds 30 `
   --healthy-threshold-count 2 --unhealthy-threshold-count 3 `
   --query "TargetGroups[0].TargetGroupArn" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Register EC2 instances to their target groups
 aws elbv2 register-targets --target-group-arn $TG_FE_ARN `
   --targets Id=$FRONTEND_ID `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 aws elbv2 register-targets --target-group-arn $TG_BE_ARN `
   --targets Id=$BACKEND_ID `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "Target Groups: fe=$TG_FE_ARN"
 Write-Host "               be=$TG_BE_ARN"
@@ -672,19 +672,19 @@ $ALB_ARN = aws elbv2 create-load-balancer `
   --security-groups $SG_ALB `
   --scheme internet-facing --type application `
   --query "LoadBalancers[0].LoadBalancerArn" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 $ALB_DNS = aws elbv2 describe-load-balancers --load-balancer-arns $ALB_ARN `
   --query "LoadBalancers[0].DNSName" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 $ALB_HZ = aws elbv2 describe-load-balancers --load-balancer-arns $ALB_ARN `
   --query "LoadBalancers[0].CanonicalHostedZoneId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "ALB created. Waiting for 'active' state (~2 min)..."
 aws elbv2 wait load-balancer-available --load-balancer-arns $ALB_ARN `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "ALB: $ALB_ARN"
 Write-Host "ALB DNS: $ALB_DNS"
@@ -695,7 +695,7 @@ Write-Host "ALB DNS: $ALB_DNS"
 ### 6.15 Step 13 — ALB Listeners + Path Rules
 
 ```powershell
-$CERT_ARN = "arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0"
+$CERT_ARN = "arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39"
 
 # HTTP:80 listener → 301 redirect to HTTPS
 $HTTP_LISTENER = aws elbv2 create-listener `
@@ -703,7 +703,7 @@ $HTTP_LISTENER = aws elbv2 create-listener `
   --protocol HTTP --port 80 `
   --default-actions 'Type=redirect,RedirectConfig={Protocol=HTTPS,Port=443,StatusCode=HTTP_301}' `
   --query "Listeners[0].ListenerArn" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # HTTPS:443 listener → default action: forward to Frontend TG
 $HTTPS_LISTENER = aws elbv2 create-listener `
@@ -713,21 +713,21 @@ $HTTPS_LISTENER = aws elbv2 create-listener `
   --ssl-policy ELBSecurityPolicy-TLS-1-2-Ext-2018-06 `
   --default-actions "Type=forward,TargetGroupArn=$TG_FE_ARN" `
   --query "Listeners[0].ListenerArn" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Path rule: /api/* → Backend TG (priority 10)
 aws elbv2 create-rule `
   --listener-arn $HTTPS_LISTENER --priority 10 `
   --conditions 'Field=path-pattern,Values=["/api/*"]' `
   --actions "Type=forward,TargetGroupArn=$TG_BE_ARN" `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 # Path rule: /health → Backend TG (priority 20)
 aws elbv2 create-rule `
   --listener-arn $HTTPS_LISTENER --priority 20 `
   --conditions 'Field=path-pattern,Values=["/health"]' `
   --actions "Type=forward,TargetGroupArn=$TG_BE_ARN" `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 Write-Host "Listeners: http=$HTTP_LISTENER"
 Write-Host "           https=$HTTPS_LISTENER"
@@ -735,29 +735,19 @@ Write-Host "           https=$HTTPS_LISTENER"
 
 ---
 
-### 6.16 Step 14 — Route53 Hosted Zone + DNS Record
+### 6.16 Step 14 — Route53 DNS Record
 
 ```powershell
-# Create hosted zone for ostaddevops.click
-$HZ_RESULT = aws route53 create-hosted-zone `
-  --name ostaddevops.click `
-  --caller-reference "bmi-app-$(Get-Date -Format 'yyyyMMddHHmmss')" `
-  --output json --profile sarowar-ostad | ConvertFrom-Json
+# Existing hosted zone for sarowar.xyz
+$HZ_ID = "Z0323767S1I25TB7Y1AT"
 
-$HZ_ID    = $HZ_RESULT.HostedZone.Id
-$NS_RECS  = $HZ_RESULT.DelegationSet.NameServers
-
-Write-Host "Hosted Zone: $HZ_ID"
-Write-Host "NS Records (update at your domain registrar):"
-$NS_RECS | ForEach-Object { Write-Host "  $_" }
-
-# Create A alias record: bmi.ostaddevops.click → ALB
+# Create A alias record: bmi.sarowar.xyz → ALB
 @"
 {
   "Changes": [{
     "Action": "UPSERT",
     "ResourceRecordSet": {
-      "Name": "bmi.ostaddevops.click",
+      "Name": "bmi.sarowar.xyz",
       "Type": "A",
       "AliasTarget": {
         "HostedZoneId": "$ALB_HZ",
@@ -772,9 +762,9 @@ $NS_RECS | ForEach-Object { Write-Host "  $_" }
 aws route53 change-resource-record-sets `
   --hosted-zone-id $HZ_ID `
   --change-batch "file://$env:TEMP\r53-change.json" `
-  --profile sarowar-ostad | Out-Null
+  --profile sarowar-own | Out-Null
 
-Write-Host "Route53 A record: bmi.ostaddevops.click → $ALB_DNS"
+Write-Host "Route53 A record: bmi.sarowar.xyz → $ALB_DNS"
 ```
 
 ---
@@ -815,13 +805,9 @@ Write-Host "  HTTP Listener   : $HTTP_LISTENER"
 Write-Host "  HTTPS Listener  : $HTTPS_LISTENER"
 Write-Host "  Hosted Zone     : $HZ_ID"
 Write-Host ""
-Write-Host "  !!! UPDATE YOUR DOMAIN REGISTRAR for ostaddevops.click !!!"
-Write-Host "  Set these 4 NS records at your registrar:"
-$NS_RECS | ForEach-Object { Write-Host "      $_" }
-Write-Host ""
 Write-Host "  Next steps: Run Phases 2-4 on each EC2 via SSM Session Manager"
 Write-Host "  SSM access command:"
-Write-Host "    aws ssm start-session --target <instance-id> --profile sarowar-ostad --region ap-south-1"
+Write-Host "    aws ssm start-session --target <instance-id> --profile sarowar-own --region ap-south-1"
 Write-Host "============================================================"
 ```
 
@@ -833,7 +819,6 @@ Write-Host "============================================================"
 | DB Instance ID | `$DB_ID` | SSM start-session |
 | Backend Instance ID | `$BACKEND_ID` | SSM start-session |
 | Frontend Instance ID | `$FRONTEND_ID` | SSM start-session |
-| Route53 NS Records (4) | `$NS_RECS` | Domain registrar |
 | ALB DNS | `$ALB_DNS` | Testing before DNS propagates |
 
 ---
@@ -873,7 +858,7 @@ Write-Host "============================================================"
 
 ```powershell
 aws ssm start-session --target $DB_ID `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Replace `$DB_ID` with the actual DB instance ID from Phase 1.
@@ -891,7 +876,7 @@ aws ssm send-command `
     'export DB_PASSWORD=''YourStr0ngP@ssword''',
     'sudo -E bash /tmp/DB-auto.sh 2>&1 | tee /tmp/db-setup.log'
   ]" `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Then check the output:
@@ -900,7 +885,7 @@ aws ssm get-command-invocation `
   --command-id "<command-id from above>" `
   --instance-id $DB_ID `
   --query "StandardOutputContent" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 #### Alternative — Paste into Session Manager shell
@@ -1003,7 +988,7 @@ Indexes:
    NODE_ENV=production
    PORT=3000
    DATABASE_URL=postgresql://bmi_user:<password>@<db-ip>:5432/bmidb
-   FRONTEND_URL=https://bmi.ostaddevops.click
+   FRONTEND_URL=https://bmi.sarowar.xyz
    ```
 9. Creates `logs/` directory
 10. Starts app with `pm2 start ecosystem.config.js` (uses `ecosystem.config.js` from the repo)
@@ -1017,7 +1002,7 @@ Same process as DB EC2, using the backend instance ID:
 
 ```powershell
 aws ssm start-session --target $BACKEND_ID `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 ### 8.3 Running the Script
@@ -1129,7 +1114,7 @@ Log files are stored at:
 
 ```powershell
 aws ssm start-session --target $FRONTEND_ID `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 ### 9.3 Running the Script
@@ -1185,7 +1170,7 @@ nginx: configuration file /etc/nginx/nginx.conf test is successful
 
   React app served by Nginx on : 10.0.2.10:80
   Build directory              : /opt/bmi-app/frontend/dist
-  Final URL                    : https://bmi.ostaddevops.click
+  Final URL                    : https://bmi.sarowar.xyz
 ```
 
 ### 9.5 Why There Is No /api Proxy in Nginx
@@ -1193,7 +1178,7 @@ nginx: configuration file /etc/nginx/nginx.conf test is successful
 In development, `vite.config.js` proxies `/api` to `localhost:3000`. In production, this proxy is not used because:
 
 1. The built React app (in `dist/`) makes API calls to `/api` (relative URL)
-2. The browser sends these requests to `https://bmi.ostaddevops.click/api/...`
+2. The browser sends these requests to `https://bmi.sarowar.xyz/api/...`
 3. The ALB intercepts at `/api/*` rule → routes to the **Backend EC2 directly** on port 3000
 4. The Frontend EC2 (Nginx) never sees `/api` requests in production
 
@@ -1203,49 +1188,35 @@ This is cleaner, more efficient, and keeps a clear separation between the fronte
 
 ## 10. Phase 5 — Domain & DNS Configuration
 
-### 10.1 Update Domain Registrar NS Records
+### 10.1 Route53 Hosted Zone
 
-Phase 1 Step 14 created a Route53 hosted zone for `ostaddevops.click` and printed 4 nameservers. You must point your domain registrar to these nameservers.
+Phase 1 Step 14 added the `bmi.sarowar.xyz` A alias record to the existing `sarowar.xyz` hosted zone (`Z0323767S1I25TB7Y1AT`). No hosted zone is created, so no registrar NS changes are needed.
 
-**Retrieve NS records** (if you need to look them up again):
+**Confirm the hosted zone and its nameservers:**
 
 ```powershell
-# $HZ_ID must be set from Phase 1, or look it up:
-$HZ_ID = aws route53 list-hosted-zones `
-  --query "HostedZones[?Name=='ostaddevops.click.'].Id" `
-  --output text --profile sarowar-ostad
+$HZ_ID = "Z0323767S1I25TB7Y1AT"
 
 aws route53 get-hosted-zone --id $HZ_ID `
   --query "DelegationSet.NameServers" `
-  --output table --profile sarowar-ostad
+  --output table --profile sarowar-own
 ```
 
-**At your domain registrar** (wherever you registered `ostaddevops.click`):
-
-1. Log in to your registrar's DNS management panel
-2. Find the NS (Nameserver) records for `ostaddevops.click`
-3. Replace existing NS records with the 4 Route53 nameservers, e.g.:
-   ```
-   ns-1234.awsdns-56.com
-   ns-789.awsdns-01.net
-   ns-234.awsdns-78.org
-   ns-567.awsdns-90.co.uk
-   ```
-4. Save changes
+The domain registrar for `sarowar.xyz` must already use these nameservers.
 
 ### 10.2 DNS Propagation
 
 - Changes propagate globally in **5 minutes to 48 hours** depending on the registrar's TTL
 - Typical time with most registrars: **15–60 minutes**
-- Check propagation status: https://dnschecker.org — search for `bmi.ostaddevops.click`
+- Check propagation status: https://dnschecker.org — search for `bmi.sarowar.xyz`
 
 ### 10.3 Verify Route53 Record
 
 ```powershell
 aws route53 list-resource-record-sets `
   --hosted-zone-id $HZ_ID `
-  --query "ResourceRecordSets[?Name=='bmi.ostaddevops.click.']" `
-  --profile sarowar-ostad
+  --query "ResourceRecordSets[?Name=='bmi.sarowar.xyz.']" `
+  --profile sarowar-own
 ```
 
 ---
@@ -1261,7 +1232,7 @@ aws ssm describe-instance-information `
   --filters "Key=tag:Name,Values=bmi-app-frontend,bmi-app-backend,bmi-app-db" `
   --query "InstanceInformationList[].{ID:InstanceId,Ping:PingStatus,Agent:AgentVersion}" `
   --output table `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Expected: All 3 show `PingStatus: Online`
@@ -1274,14 +1245,14 @@ aws elbv2 describe-target-health `
   --target-group-arn $TG_FE_ARN `
   --query "TargetHealthDescriptions[].{ID:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}" `
   --output table `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Backend Target Group health
 aws elbv2 describe-target-health `
   --target-group-arn $TG_BE_ARN `
   --query "TargetHealthDescriptions[].{ID:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}" `
   --output table `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Expected: Both show `State: healthy`
@@ -1304,21 +1275,21 @@ curl -k "https://$ALB_DNS/health"
 
 ```powershell
 # Health check
-Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/health"
+Invoke-RestMethod -Uri "https://bmi.sarowar.xyz/health"
 # Expected: @{status=ok; environment=production}
 
 # API — create a measurement
-Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/api/measurements" -Method POST `
+Invoke-RestMethod -Uri "https://bmi.sarowar.xyz/api/measurements" -Method POST `
   -ContentType "application/json" `
   -Body '{"weightKg":75,"heightCm":175,"age":30,"sex":"male","activity":"moderate"}'
 # Expected: 201 response with measurement data including bmi, bmiCategory, bmr, dailyCalories
 
 # API — retrieve measurements
-Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/api/measurements"
+Invoke-RestMethod -Uri "https://bmi.sarowar.xyz/api/measurements"
 # Expected: {"rows":[...]}
 
 # API — BMI trends
-Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/api/measurements/trends"
+Invoke-RestMethod -Uri "https://bmi.sarowar.xyz/api/measurements/trends"
 # Expected: {"rows":[...]}
 ```
 
@@ -1326,19 +1297,19 @@ Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/api/measurements/trends"
 
 ```powershell
 # Should get a 301 redirect, not content
-Invoke-WebRequest -Uri "http://bmi.ostaddevops.click" -MaximumRedirection 0 -ErrorAction SilentlyContinue |
+Invoke-WebRequest -Uri "http://bmi.sarowar.xyz" -MaximumRedirection 0 -ErrorAction SilentlyContinue |
   Select-Object StatusCode, Headers
-# Expected: StatusCode 301, Location header: https://bmi.ostaddevops.click/
+# Expected: StatusCode 301, Location header: https://bmi.sarowar.xyz/
 ```
 
 ### 11.6 Browser Test
 
-1. Open `http://bmi.ostaddevops.click` — should auto-redirect to HTTPS
+1. Open `http://bmi.sarowar.xyz` — should auto-redirect to HTTPS
 2. Check for padlock icon (valid TLS certificate)
 3. Enter BMI data and click **Save** — record should appear in the list
 4. Submit 2–3 measurements on different dates
 5. Scroll down to the trend chart — it shows 30-day BMI trend
-6. Verify the Certificate details in the browser: issued for `bmi.ostaddevops.click`
+6. Verify the Certificate details in the browser: issued for `bmi.sarowar.xyz`
 
 ---
 
@@ -1350,8 +1321,8 @@ Invoke-WebRequest -Uri "http://bmi.ostaddevops.click" -MaximumRedirection 0 -Err
 1. User fills in the form in the browser
 2. React's MeasurementForm.jsx calls:
    POST /api/measurements  { weightKg, heightCm, age, sex, activity, measurementDate }
-3. Browser sends request to https://bmi.ostaddevops.click/api/measurements
-4. Route53 resolves bmi.ostaddevops.click → ALB
+3. Browser sends request to https://bmi.sarowar.xyz/api/measurements
+4. Route53 resolves bmi.sarowar.xyz → ALB
 5. ALB receives HTTPS:443, terminates TLS using ACM cert
 6. ALB checks listener rules:
    - /api/* matches priority-10 rule → forwards to Backend Target Group (port 3000)
@@ -1368,12 +1339,12 @@ Invoke-WebRequest -Uri "http://bmi.ostaddevops.click" -MaximumRedirection 0 -Err
 ### 12.2 What Happens When a User Loads the App
 
 ```
-1. Browser requests https://bmi.ostaddevops.click/
+1. Browser requests https://bmi.sarowar.xyz/
 2. ALB default rule forwards to Frontend Target Group (port 80)
 3. Nginx on Frontend EC2 serves /opt/bmi-app/frontend/dist/index.html
 4. Browser loads React JS bundle (served from same Nginx)
 5. React App.jsx mounts, calls GET /api/measurements
-6. Browser sends request to https://bmi.ostaddevops.click/api/measurements
+6. Browser sends request to https://bmi.sarowar.xyz/api/measurements
 7. ALB routes /api/* → Backend → PostgreSQL → returns rows
 8. React renders the measurement list and stats
 9. React TrendChart.jsx calls GET /api/measurements/trends
@@ -1387,7 +1358,7 @@ Invoke-WebRequest -Uri "http://bmi.ostaddevops.click" -MaximumRedirection 0 -Err
 | `NODE_ENV` | `production` | Enables production CORS (uses `FRONTEND_URL`) |
 | `PORT` | `3000` | Express listen port |
 | `DATABASE_URL` | `postgresql://bmi_user:<pw>@<db-ip>:5432/bmidb` | pg connection pool |
-| `FRONTEND_URL` | `https://bmi.ostaddevops.click` | CORS allowed origin |
+| `FRONTEND_URL` | `https://bmi.sarowar.xyz` | CORS allowed origin |
 
 ---
 
@@ -1400,14 +1371,14 @@ No port 22 is open on any instance. Use SSM Session Manager:
 ```powershell
 # Interactive shell on any instance
 aws ssm start-session --target <instance-id> `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Run a one-off command
 aws ssm send-command `
   --instance-ids "<instance-id>" `
   --document-name "AWS-RunShellScript" `
   --parameters "commands=['pm2 status']" `
-  --profile sarowar-ostad --region ap-south-1 `
+  --profile sarowar-own --region ap-south-1 `
   --query "Command.CommandId" --output text
 ```
 
@@ -1493,33 +1464,33 @@ To look up any ID at any time:
 ```powershell
 # VPC
 aws ec2 describe-vpcs --filters "Name=tag:Name,Values=bmi-app-vpc" `
-  --query "Vpcs[0].VpcId" --output text --profile sarowar-ostad --region ap-south-1
+  --query "Vpcs[0].VpcId" --output text --profile sarowar-own --region ap-south-1
 
 # EC2 instances
 aws ec2 describe-instances `
   --filters "Name=tag:Name,Values=bmi-app-frontend,bmi-app-backend,bmi-app-db" `
   --query "Reservations[].Instances[].{Name:Tags[?Key=='Name']|[0].Value,ID:InstanceId,IP:PrivateIpAddress}" `
-  --output table --profile sarowar-ostad --region ap-south-1
+  --output table --profile sarowar-own --region ap-south-1
 
 # ALB
 aws elbv2 describe-load-balancers --names bmi-app-alb `
   --query "LoadBalancers[0].{ARN:LoadBalancerArn,DNS:DNSName}" `
-  --output table --profile sarowar-ostad --region ap-south-1
+  --output table --profile sarowar-own --region ap-south-1
 
 # Target Groups
 aws elbv2 describe-target-groups `
   --query "TargetGroups[?contains(TargetGroupName,'bmi-app')].{Name:TargetGroupName,ARN:TargetGroupArn}" `
-  --output table --profile sarowar-ostad --region ap-south-1
+  --output table --profile sarowar-own --region ap-south-1
 
 # Route53 hosted zone
-aws route53 list-hosted-zones `
-  --query "HostedZones[?Name=='ostaddevops.click.'].{Name:Name,ID:Id}" `
-  --output table --profile sarowar-ostad
+aws route53 get-hosted-zone --id Z0323767S1I25TB7Y1AT `
+  --query "HostedZone.{Name:Name,ID:Id}" `
+  --output table --profile sarowar-own
 
 # NAT Gateway
 aws ec2 describe-nat-gateways --filter "Name=tag:Name,Values=bmi-app-nat" `
   --query "NatGateways[0].NatGatewayId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 ---
@@ -1530,27 +1501,24 @@ Delete all AWS resources created in Phase 1, in **reverse order of creation**. S
 
 > **Tip:** If you still have the Phase 1 PowerShell terminal session open, the `$VAR` variables are still available. Otherwise, use the lookup commands in Section 13.5 to retrieve IDs first.
 
-### Step 1 — Delete Route53 DNS Records and Hosted Zone
+### Step 1 — Delete Route53 DNS Record
 
 ```powershell
 # Get ALB details for the alias record
 $ALB_DNS = aws elbv2 describe-load-balancers --names bmi-app-alb `
-  --query "LoadBalancers[0].DNSName" --output text --profile sarowar-ostad --region ap-south-1
+  --query "LoadBalancers[0].DNSName" --output text --profile sarowar-own --region ap-south-1
 $ALB_HZ = aws elbv2 describe-load-balancers --names bmi-app-alb `
-  --query "LoadBalancers[0].CanonicalHostedZoneId" --output text --profile sarowar-ostad --region ap-south-1
-$HZ_ID = aws route53 list-hosted-zones `
-  --query "HostedZones[?Name=='ostaddevops.click.'].Id" --output text --profile sarowar-ostad
+  --query "LoadBalancers[0].CanonicalHostedZoneId" --output text --profile sarowar-own --region ap-south-1
+$HZ_ID = "Z0323767S1I25TB7Y1AT"   # pre-existing hosted zone, not deleted
 
 # Delete A alias record
 @"
-{"Changes":[{"Action":"DELETE","ResourceRecordSet":{"Name":"bmi.ostaddevops.click","Type":"A","AliasTarget":{"HostedZoneId":"$ALB_HZ","DNSName":"dualstack.$ALB_DNS","EvaluateTargetHealth":true}}}]}
+{"Changes":[{"Action":"DELETE","ResourceRecordSet":{"Name":"bmi.sarowar.xyz","Type":"A","AliasTarget":{"HostedZoneId":"$ALB_HZ","DNSName":"dualstack.$ALB_DNS","EvaluateTargetHealth":true}}}]}
 "@ | Out-File "$env:TEMP\r53-del.json" -Encoding ascii
 aws route53 change-resource-record-sets --hosted-zone-id $HZ_ID `
-  --change-batch "file://$env:TEMP\r53-del.json" --profile sarowar-ostad | Out-Null
+  --change-batch "file://$env:TEMP\r53-del.json" --profile sarowar-own | Out-Null
 
-# Delete hosted zone
-aws route53 delete-hosted-zone --id $HZ_ID --profile sarowar-ostad | Out-Null
-Write-Host "Route53: deleted"
+Write-Host "Route53 record: deleted"
 ```
 
 ### Step 2 — Delete ALB Listeners and Rules
@@ -1558,20 +1526,20 @@ Write-Host "Route53: deleted"
 ```powershell
 # Get listener ARNs
 $LISTENERS = aws elbv2 describe-listeners `
-  --load-balancer-arn (aws elbv2 describe-load-balancers --names bmi-app-alb --query "LoadBalancers[0].LoadBalancerArn" --output text --profile sarowar-ostad --region ap-south-1) `
+  --load-balancer-arn (aws elbv2 describe-load-balancers --names bmi-app-alb --query "LoadBalancers[0].LoadBalancerArn" --output text --profile sarowar-own --region ap-south-1) `
   --query "Listeners[].ListenerArn" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 foreach ($L in $LISTENERS.Split()) {
     if ($L) {
         # Delete non-default rules first
         $RULES = aws elbv2 describe-rules --listener-arn $L `
           --query "Rules[?IsDefault==\`false\`].RuleArn" --output text `
-          --profile sarowar-ostad --region ap-south-1
+          --profile sarowar-own --region ap-south-1
         foreach ($R in $RULES.Split()) {
-            if ($R) { aws elbv2 delete-rule --rule-arn $R --profile sarowar-ostad --region ap-south-1 | Out-Null }
+            if ($R) { aws elbv2 delete-rule --rule-arn $R --profile sarowar-own --region ap-south-1 | Out-Null }
         }
-        aws elbv2 delete-listener --listener-arn $L --profile sarowar-ostad --region ap-south-1 | Out-Null
+        aws elbv2 delete-listener --listener-arn $L --profile sarowar-own --region ap-south-1 | Out-Null
     }
 }
 Write-Host "Listeners: deleted"
@@ -1582,14 +1550,14 @@ Write-Host "Listeners: deleted"
 ```powershell
 $ALB_ARN = aws elbv2 describe-load-balancers --names bmi-app-alb `
   --query "LoadBalancers[0].LoadBalancerArn" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 aws elbv2 delete-load-balancer --load-balancer-arn $ALB_ARN `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 Write-Host "Waiting for ALB deletion..."
 aws elbv2 wait load-balancers-deleted --load-balancer-arns $ALB_ARN `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 Write-Host "ALB: deleted"
 ```
 
@@ -1598,10 +1566,10 @@ Write-Host "ALB: deleted"
 ```powershell
 $TGS = aws elbv2 describe-target-groups `
   --query "TargetGroups[?contains(TargetGroupName,'bmi-app')].TargetGroupArn" `
-  --output text --profile sarowar-ostad --region ap-south-1
+  --output text --profile sarowar-own --region ap-south-1
 
 foreach ($TG in $TGS.Split()) {
-    if ($TG) { aws elbv2 delete-target-group --target-group-arn $TG --profile sarowar-ostad --region ap-south-1 | Out-Null }
+    if ($TG) { aws elbv2 delete-target-group --target-group-arn $TG --profile sarowar-own --region ap-south-1 | Out-Null }
 }
 Write-Host "Target Groups: deleted"
 ```
@@ -1613,14 +1581,14 @@ $IDS = aws ec2 describe-instances `
   --filters "Name=tag:Name,Values=bmi-app-frontend,bmi-app-backend,bmi-app-db" `
             "Name=instance-state-name,Values=running,stopped" `
   --query "Reservations[].Instances[].InstanceId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 aws ec2 terminate-instances --instance-ids $IDS.Split() `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 Write-Host "Waiting for instances to terminate..."
 aws ec2 wait instance-terminated --instance-ids $IDS.Split() `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 Write-Host "EC2 instances: terminated"
 ```
 
@@ -1629,13 +1597,13 @@ Write-Host "EC2 instances: terminated"
 ```powershell
 aws iam remove-role-from-instance-profile `
   --instance-profile-name bmi-ssm-profile --role-name bmi-ssm-role `
-  --profile sarowar-ostad
+  --profile sarowar-own
 aws iam delete-instance-profile --instance-profile-name bmi-ssm-profile `
-  --profile sarowar-ostad
+  --profile sarowar-own
 aws iam detach-role-policy --role-name bmi-ssm-role `
   --policy-arn arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore `
-  --profile sarowar-ostad
-aws iam delete-role --role-name bmi-ssm-role --profile sarowar-ostad
+  --profile sarowar-own
+aws iam delete-role --role-name bmi-ssm-role --profile sarowar-own
 Write-Host "IAM: deleted"
 ```
 
@@ -1645,22 +1613,22 @@ Write-Host "IAM: deleted"
 $NAT_ID = aws ec2 describe-nat-gateways `
   --filter "Name=tag:Name,Values=bmi-app-nat" "Name=state,Values=available" `
   --query "NatGateways[0].NatGatewayId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 aws ec2 delete-nat-gateway --nat-gateway-id $NAT_ID `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 Write-Host "Waiting for NAT Gateway deletion (~2 min)..."
 aws ec2 wait nat-gateway-deleted --nat-gateway-ids $NAT_ID `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Release Elastic IP
 $EIP_ALLOC = aws ec2 describe-addresses `
   --filters "Name=tag:Name,Values=bmi-app-eip" `
   --query "Addresses[0].AllocationId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 aws ec2 release-address --allocation-id $EIP_ALLOC `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 Write-Host "NAT Gateway + EIP: deleted"
 ```
 
@@ -1669,24 +1637,24 @@ Write-Host "NAT Gateway + EIP: deleted"
 ```powershell
 $VPC_ID = aws ec2 describe-vpcs `
   --filters "Name=tag:Name,Values=bmi-app-vpc" `
-  --query "Vpcs[0].VpcId" --output text --profile sarowar-ostad --region ap-south-1
+  --query "Vpcs[0].VpcId" --output text --profile sarowar-own --region ap-south-1
 
 # Disassociate and delete non-main route tables
 $RTS = aws ec2 describe-route-tables `
   --filters "Name=vpc-id,Values=$VPC_ID" `
   --query "RouteTables[?Associations[0].Main!=\`true\`].RouteTableId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 foreach ($RT in $RTS.Split()) {
     if ($RT) {
         $ASSOCS = aws ec2 describe-route-tables --route-table-ids $RT `
           --query "RouteTables[0].Associations[].RouteTableAssociationId" --output text `
-          --profile sarowar-ostad --region ap-south-1
+          --profile sarowar-own --region ap-south-1
         foreach ($A in $ASSOCS.Split()) {
-            if ($A) { aws ec2 disassociate-route-table --association-id $A --profile sarowar-ostad --region ap-south-1 | Out-Null }
+            if ($A) { aws ec2 disassociate-route-table --association-id $A --profile sarowar-own --region ap-south-1 | Out-Null }
         }
         aws ec2 delete-route-table --route-table-id $RT `
-          --profile sarowar-ostad --region ap-south-1 | Out-Null
+          --profile sarowar-own --region ap-south-1 | Out-Null
     }
 }
 Write-Host "Route Tables: deleted"
@@ -1697,10 +1665,10 @@ Write-Host "Route Tables: deleted"
 ```powershell
 $SUBNETS = aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" `
   --query "Subnets[].SubnetId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 foreach ($SN in $SUBNETS.Split()) {
-    if ($SN) { aws ec2 delete-subnet --subnet-id $SN --profile sarowar-ostad --region ap-south-1 | Out-Null }
+    if ($SN) { aws ec2 delete-subnet --subnet-id $SN --profile sarowar-own --region ap-south-1 | Out-Null }
 }
 Write-Host "Subnets: deleted"
 ```
@@ -1713,10 +1681,10 @@ foreach ($SGName in @('sg-db','sg-backend','sg-frontend','sg-alb')) {
     $SG = aws ec2 describe-security-groups `
       --filters "Name=group-name,Values=bmi-app-$SGName" "Name=vpc-id,Values=$VPC_ID" `
       --query "SecurityGroups[0].GroupId" --output text `
-      --profile sarowar-ostad --region ap-south-1
+      --profile sarowar-own --region ap-south-1
     if ($SG -and $SG -ne 'None') {
         aws ec2 delete-security-group --group-id $SG `
-          --profile sarowar-ostad --region ap-south-1 | Out-Null
+          --profile sarowar-own --region ap-south-1 | Out-Null
         Write-Host "  Deleted SG: $SGName ($SG)"
     }
 }
@@ -1729,15 +1697,15 @@ Write-Host "Security Groups: deleted"
 $IGW_ID = aws ec2 describe-internet-gateways `
   --filters "Name=attachment.vpc-id,Values=$VPC_ID" `
   --query "InternetGateways[0].InternetGatewayId" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 aws ec2 detach-internet-gateway --internet-gateway-id $IGW_ID --vpc-id $VPC_ID `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 aws ec2 delete-internet-gateway --internet-gateway-id $IGW_ID `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 aws ec2 delete-vpc --vpc-id $VPC_ID `
-  --profile sarowar-ostad --region ap-south-1 | Out-Null
+  --profile sarowar-own --region ap-south-1 | Out-Null
 
 Write-Host "IGW + VPC: deleted"
 Write-Host ""
@@ -1749,10 +1717,10 @@ Write-Host "============================================================"
 ### What Teardown Does NOT Remove
 
 - The ACM certificate (pre-existing, not created by these steps)
-- The `sarowar-ostad-mumbai` key pair
+- The `sarowar-own` key pair
 - The AWS CLI named profile
 - Any data in S3 or other services
-- The domain registration at your registrar (NS records remain until you manually revert them)
+- The `sarowar.xyz` hosted zone and its registrar NS records (pre-existing)
 
 > **Estimated teardown time:** ~10 minutes (most is waiting for NAT Gateway deletion)
 
@@ -1769,7 +1737,7 @@ Write-Host "============================================================"
 # Check instance SSM status
 aws ssm describe-instance-information `
   --filters "Key=InstanceIds,Values=<instance-id>" `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 If empty: wait 3 more minutes, then check the EC2 instance is running. Verify the IAM instance profile `bmi-ssm-profile` is attached to the instance.
@@ -1825,19 +1793,19 @@ systemctl restart nginx
 
 ---
 
-### Problem: `https://bmi.ostaddevops.click` shows "This site can't be reached"
+### Problem: `https://bmi.sarowar.xyz` shows "This site can't be reached"
 
-**Cause:** DNS not propagated yet, or NS records not updated at registrar.
+**Cause:** DNS not propagated yet, or the A record points to a different ALB.
 
 **Fix:**
 ```powershell
 # Check current NS for the domain
-nslookup -type=NS ostaddevops.click
+nslookup -type=NS sarowar.xyz
 
 # Check if Route53 A record exists
 aws route53 list-resource-record-sets --hosted-zone-id $HZ_ID `
-  --query "ResourceRecordSets[?Name=='bmi.ostaddevops.click.']" `
-  --profile sarowar-ostad
+  --query "ResourceRecordSets[?Name=='bmi.sarowar.xyz.']" `
+  --profile sarowar-own
 
 # Test directly via ALB DNS (bypasses DNS propagation)
 curl -k https://$ALB_DNS/health
@@ -1847,17 +1815,17 @@ curl -k https://$ALB_DNS/health
 
 ### Problem: Certificate warning in browser
 
-**Cause:** ACM cert may not cover `bmi.ostaddevops.click` (check SAN) or DNS is pointing to a different endpoint.
+**Cause:** ACM cert may not cover `bmi.sarowar.xyz` (check SAN) or DNS is pointing to a different endpoint.
 
 **Fix:**
 ```powershell
 aws acm describe-certificate `
-  --certificate-arn "arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0" `
+  --certificate-arn "arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39" `
   --query "Certificate.{Status:Status,Domains:DomainValidationOptions[].DomainName}" `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
-The cert must show `ISSUED` status and list `bmi.ostaddevops.click` in Domains.
+The cert must show `ISSUED` status and list `bmi.sarowar.xyz` in Domains.
 
 ---
 
@@ -1873,7 +1841,7 @@ To check if a named resource already exists before re-creating it:
 ```powershell
 # Example: check if VPC already exists
 aws ec2 describe-vpcs --filters "Name=tag:Name,Values=bmi-app-vpc" `
-  --query "Vpcs[0].VpcId" --output text --profile sarowar-ostad --region ap-south-1
+  --query "Vpcs[0].VpcId" --output text --profile sarowar-own --region ap-south-1
 # Returns 'None' if not found, or a vpc-id if it exists
 ```
 

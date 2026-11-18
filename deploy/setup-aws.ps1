@@ -6,13 +6,13 @@
     Creates VPC, subnets, IGW, NAT GW, security groups, IAM role (SSM),
     3 private EC2 instances (Frontend / Backend / DB), an internet-facing ALB
     with HTTPS (ACM cert) + HTTP-to-HTTPS redirect, and a Route53 A alias
-    record for bmi.ostaddevops.click in the existing hosted zone.
+    record for bmi.sarowar.xyz in the existing hosted zone.
 
     All resource IDs are saved to aws-deploy-state.json so the -Teardown
     switch can destroy everything cleanly in reverse order.
 
 .PARAMETER Profile
-    AWS named profile to use. Default: sarowar-ostad
+    AWS named profile to use. Default: sarowar-own
 
 .PARAMETER Teardown
     If set, reads aws-deploy-state.json and destroys all created resources.
@@ -28,7 +28,7 @@
 
 [CmdletBinding()]
 param(
-    [string]$Profile  = "sarowar-ostad",
+    [string]$Profile  = "sarowar-own",
     [switch]$Teardown
 )
 
@@ -49,11 +49,11 @@ $Az1             = "ap-south-1a"
 $Az2             = "ap-south-1b"
 
 $InstanceType    = "t3.medium"
-$KeyName         = "sarowar-ostad-mumbai"
-$AcmCertArn      = "arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0"
+$KeyName         = "sarowar-own"
+$AcmCertArn      = "arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39"
 
-$Domain          = "bmi.ostaddevops.click"
-$HostedZoneId    = "Z1019653XLWIJ02C53P5"   # existing hosted zone for ostaddevops.click
+$Domain          = "bmi.sarowar.xyz"
+$HostedZoneId    = "Z0323767S1I25TB7Y1AT"   # existing hosted zone for sarowar.xyz
 $IamRoleName     = "bmi-ssm-role"
 $IamProfileName  = "bmi-ssm-profile"
 
@@ -146,7 +146,7 @@ if ($Teardown) {
         } catch { Write-Warn "Route53 record deletion skipped: $_" }
     }
 
-    # NOTE: The hosted zone (Z1019653XLWIJ02C53P5) is pre-existing and is NOT deleted.
+    # NOTE: The hosted zone (Z0323767S1I25TB7Y1AT) is pre-existing and is NOT deleted.
 
     # ── Delete ALB listeners ─────────────────────────────────────────────────
     foreach ($lArn in @($s.ListenerHttp, $s.ListenerHttps)) {
@@ -624,7 +624,7 @@ $hzId = "/hostedzone/$HostedZoneId"
 $state.HostedZoneId = $hzId
 Save-State $state
 
-# Create alias A record  bmi.ostaddevops.click → ALB
+# Create alias A record  bmi.sarowar.xyz → ALB
 $changeBatchJson = @"
 {
   "Changes": [{
@@ -670,7 +670,7 @@ Write-Host "    $albDns"
 Write-Host "`n  Route53 Hosted Zone: $hzId (pre-existing)" -ForegroundColor Cyan
 
 Write-Host "`n  Next Steps:" -ForegroundColor Cyan
-Write-Host "  1. DNS is live — bmi.ostaddevops.click already points to the ALB" -ForegroundColor Green
+Write-Host "  1. DNS is live — bmi.sarowar.xyz already points to the ALB" -ForegroundColor Green
 Write-Host "  2. On DB EC2 ($dbId) via SSM Session Manager:"
 Write-Host "       sudo DB_PASSWORD='<strong-password>' bash /tmp/DB-auto.sh" -ForegroundColor White
 Write-Host "  3. On Backend EC2 ($beId) via SSM Session Manager:"

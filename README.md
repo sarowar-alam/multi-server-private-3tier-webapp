@@ -45,7 +45,7 @@ The **BMI & Health Tracker** is a full-stack web application that allows users t
 
 The project is purpose-built to demonstrate **multi-server three-tier application deployment** on AWS using industry best practices: private-subnet EC2 instances, a managed load balancer with TLS termination, NAT Gateway for outbound-only internet access, and AWS SSM for zero-bastion host access.
 
-**Live URL:** `https://bmi.ostaddevops.click`  
+**Live URL:** `https://bmi.sarowar.xyz`  
 **Repository:** `https://github.com/sarowar-alam/multi-server-private-3tier-webapp`
 
 ---
@@ -58,7 +58,7 @@ The project is purpose-built to demonstrate **multi-server three-tier applicatio
                         └──────────────┬───────────────────────┘
                                        │ HTTPS :443 / HTTP :80
                         ┌──────────────▼───────────────────────┐
-                        │   Route53 — bmi.ostaddevops.click    │
+                        │   Route53 — bmi.sarowar.xyz          │
                         │     (A alias record → ALB DNS)       │
                         └──────────────┬───────────────────────┘
                                        │
@@ -242,7 +242,7 @@ Female: BMR = (10 × weight_kg) + (6.25 × height_cm) − (5 × age) − 161
 
 ```
 Browser
-  │ POST https://bmi.ostaddevops.click/api/measurements
+  │ POST https://bmi.sarowar.xyz/api/measurements
   ▼
 Route53 → ALB (TLS terminates here)
   │ ALB rule: /api/* → Backend Target Group :3000
@@ -261,7 +261,7 @@ Backend EC2 → ALB → Browser
 
 ## API Reference
 
-**Base URL (production):** `https://bmi.ostaddevops.click`  
+**Base URL (production):** `https://bmi.sarowar.xyz`  
 **Base URL (development):** `http://localhost:3000`
 
 ### Endpoints
@@ -333,7 +333,7 @@ Backend EC2 → ALB → Browser
 | `NODE_ENV` | Yes | `production` | Switches CORS mode to production |
 | `PORT` | No | `3000` | Express listen port (default: `3000`) |
 | `DATABASE_URL` | Yes | `postgresql://bmi_user:pass@10.0.2.z:5432/bmidb` | PostgreSQL connection string |
-| `FRONTEND_URL` | Yes (prod) | `https://bmi.ostaddevops.click` | Allowed CORS origin in production |
+| `FRONTEND_URL` | Yes (prod) | `https://bmi.sarowar.xyz` | Allowed CORS origin in production |
 
 **File permissions:** `.env` is created with mode `600` (readable by root only).
 
@@ -371,25 +371,25 @@ No `.env` file is needed. The React app uses the relative URL `/api` for all API
 | Item | Notes |
 |---|---|
 | IAM user/role | Needs EC2, ELB, Route53, IAM, SSM permissions |
-| Named profile `sarowar-ostad` | Configured in `~/.aws/credentials` |
-| Key pair `sarowar-ostad-mumbai` | Must exist in `ap-south-1` |
-| ACM Certificate | `arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0` — status must be `ISSUED` |
-| Domain `ostaddevops.click` | Registered at a domain registrar (NS records will be updated to Route53) |
+| Named profile `sarowar-own` | Configured in `~/.aws/credentials` |
+| Key pair `sarowar-own` | Must exist in `ap-south-1` |
+| ACM Certificate | `arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39` — status must be `ISSUED` |
+| Domain `sarowar.xyz` | Existing Route53 hosted zone `Z0323767S1I25TB7Y1AT` (the A record is added to it; no new zone is created) |
 
 Verify profile and connectivity:
 
 ```powershell
-aws configure list --profile sarowar-ostad
-aws sts get-caller-identity --profile sarowar-ostad
+aws configure list --profile sarowar-own
+aws sts get-caller-identity --profile sarowar-own
 ```
 
 Verify certificate:
 
 ```powershell
 aws acm describe-certificate `
-  --certificate-arn "arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0" `
+  --certificate-arn "arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39" `
   --query "Certificate.Status" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 # Expected: ISSUED
 ```
 
@@ -507,7 +507,7 @@ The `dist/` directory contains the optimised static bundle served by Nginx.
 cd backend
 NODE_ENV=production \
 DATABASE_URL=postgresql://bmi_user:pass@<db-ip>:5432/bmidb \
-FRONTEND_URL=https://bmi.ostaddevops.click \
+FRONTEND_URL=https://bmi.sarowar.xyz \
 node src/server.js
 ```
 
@@ -533,10 +533,10 @@ Both guides cover the same 3-tier architecture and result in an identical runnin
 cd deploy
 .\setup-aws.ps1
 # Runs for ~10 minutes
-# Note the printed: EC2 private IPs, ALB DNS, Route53 NS records
+# Note the printed: EC2 private IPs, ALB DNS
 ```
 
-This creates: VPC → Internet Gateway → 3 subnets → route tables → NAT Gateway → 4 security groups → IAM SSM role → 3 EC2 instances → 2 target groups → ALB with listeners → Route53 hosted zone + A record.
+This creates: VPC → Internet Gateway → 3 subnets → route tables → NAT Gateway → 4 security groups → IAM SSM role → 3 EC2 instances → 2 target groups → ALB with listeners → Route53 A record in the existing `sarowar.xyz` hosted zone.
 
 All resource IDs are saved to `deploy/aws-deploy-state.json`.
 
@@ -548,7 +548,7 @@ Connect via SSM Session Manager:
 
 ```powershell
 aws ssm start-session --target <db-instance-id> \
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Inside the session:
@@ -566,7 +566,7 @@ sudo -E bash /tmp/DB-auto.sh
 
 ```powershell
 aws ssm start-session --target <backend-instance-id> \
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 ```bash
@@ -582,7 +582,7 @@ sudo -E bash /tmp/backend-auto.sh
 
 ```powershell
 aws ssm start-session --target <frontend-instance-id> \
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 ```bash
@@ -592,9 +592,9 @@ sudo bash /tmp/frontend-auto.sh
 
 **What it does:** Installs Node.js 20 + Nginx, clones repo, runs Vite build, writes Nginx SPA config (with security headers and gzip), enables site, verifies HTTP 200.
 
-#### Step 5 — Update Domain Registrar NS Records
+#### Step 5 — Confirm DNS
 
-The PowerShell script prints 4 nameservers. At your domain registrar (where `ostaddevops.click` is registered), replace the existing NS records with these Route53 nameservers. DNS propagation takes 5–60 minutes.
+The A record `bmi.sarowar.xyz` is created in the existing `sarowar.xyz` hosted zone, so no registrar NS changes are needed. DNS propagation takes up to a few minutes.
 
 #### Step 6 — Verify
 
@@ -603,11 +603,11 @@ The PowerShell script prints 4 nameservers. At your domain registrar (where `ost
 curl -k https://<alb-dns>/health
 
 # After DNS propagation
-curl https://bmi.ostaddevops.click/health
+curl https://bmi.sarowar.xyz/health
 # Expected: {"status":"ok","environment":"production"}
 ```
 
-Then browse `https://bmi.ostaddevops.click` and verify the full application.
+Then browse `https://bmi.sarowar.xyz` and verify the full application.
 
 ### Teardown
 
@@ -825,7 +825,7 @@ ALB access logging can be enabled to an S3 bucket via the AWS Console:
 aws ssm describe-instance-information \
   --filters "Key=InstanceIds,Values=<instance-id>" \
   --query "InstanceInformationList[].PingStatus" \
-  --output text --profile sarowar-ostad --region ap-south-1
+  --output text --profile sarowar-own --region ap-south-1
 ```
 
 - If empty: wait 3–5 minutes after launch — SSM agent bootstrap takes time
@@ -840,7 +840,7 @@ aws ssm describe-instance-information \
 aws elbv2 describe-target-health \
   --target-group-arn "<tg-arn>" \
   --query "TargetHealthDescriptions[].{State:TargetHealth.State,Reason:TargetHealth.Reason,Desc:TargetHealth.Description}" \
-  --output table --profile sarowar-ostad --region ap-south-1
+  --output table --profile sarowar-own --region ap-south-1
 ```
 
 - `initial` — health checks haven't completed; wait 60 seconds
@@ -885,15 +885,15 @@ tail -20 /var/log/nginx/bmi-error.log
 
 ---
 
-### `https://bmi.ostaddevops.click` Not Resolving
+### `https://bmi.sarowar.xyz` Not Resolving
 
 ```powershell
 # Check DNS resolution
-nslookup bmi.ostaddevops.click
-Resolve-DnsName bmi.ostaddevops.click
+nslookup bmi.sarowar.xyz
+Resolve-DnsName bmi.sarowar.xyz
 
 # Check NS delegation
-nslookup -type=NS ostaddevops.click
+nslookup -type=NS sarowar.xyz
 
 # Test via ALB DNS directly (bypasses DNS propagation)
 curl -k -v "https://<alb-dns>/health"

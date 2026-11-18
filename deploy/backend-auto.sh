@@ -46,7 +46,7 @@ DB_USER="bmi_user"
 DB_NAME="bmidb"
 APP_DIR="/opt/bmi-app"
 REPO_URL="https://github.com/sarowar-alam/multi-server-private-3tier-webapp.git"
-FRONTEND_URL="https://bmi.ostaddevops.click"
+FRONTEND_URL="https://bmi.sarowar.xyz"
 NODE_VERSION="20"
 
 step "Starting backend setup | DB=${DB_PRIVATE_IP}:5432"

@@ -4,9 +4,9 @@
 > For a manual step-by-step approach using only AWS CLI, see [`DEPLOYMENT-GUIDE-MANUAL.md`](DEPLOYMENT-GUIDE-MANUAL.md).
 
 **Application:** BMI & Health Tracker (React → Node.js/Express → PostgreSQL)  
-**Domain:** `bmi.ostaddevops.click`  
+**Domain:** `bmi.sarowar.xyz`  
 **Region:** `ap-south-1` (Mumbai)  
-**AWS Profile:** `sarowar-ostad`  
+**AWS Profile:** `sarowar-own`  
 **Repository:** https://github.com/sarowar-alam/multi-server-private-3tier-webapp.git
 
 ---
@@ -40,7 +40,7 @@ Internet
     │  HTTP  :80  → 301 redirect to HTTPS
     ▼
 ┌─────────────────────────────────────────────────────────┐
-│  Route53 — bmi.ostaddevops.click (A alias → ALB DNS)    │
+│  Route53 — bmi.sarowar.xyz (A alias → ALB DNS)          │
 └──────────────────────────┬──────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────┐
@@ -103,16 +103,16 @@ They reach the internet (apt, npm, git, SSM) through the NAT Gateway.
 
 ### 2.2 AWS CLI Named Profile
 
-The PowerShell script uses the named profile `sarowar-ostad`. Verify it exists:
+The PowerShell script uses the named profile `sarowar-own`. Verify it exists:
 
 ```powershell
-aws configure list --profile sarowar-ostad
+aws configure list --profile sarowar-own
 ```
 
 Expected output shows `access_key`, `secret_key`, and `region`. If missing, configure it:
 
 ```powershell
-aws configure --profile sarowar-ostad
+aws configure --profile sarowar-own
 # AWS Access Key ID:     <your-key>
 # AWS Secret Access Key: <your-secret>
 # Default region name:   ap-south-1
@@ -122,26 +122,26 @@ aws configure --profile sarowar-ostad
 Verify connectivity:
 
 ```powershell
-aws sts get-caller-identity --profile sarowar-ostad
+aws sts get-caller-identity --profile sarowar-own
 ```
 
 This should return your AWS account ID and IAM user/role ARN.
 
 ### 2.3 EC2 Key Pair
 
-The script uses the key pair `sarowar-ostad-mumbai`. Verify it exists in `ap-south-1`:
+The script uses the key pair `sarowar-own`. Verify it exists in `ap-south-1`:
 
 ```powershell
-aws ec2 describe-key-pairs --key-names sarowar-ostad-mumbai `
-  --profile sarowar-ostad --region ap-south-1
+aws ec2 describe-key-pairs --key-names sarowar-own `
+  --profile sarowar-own --region ap-south-1
 ```
 
 If it doesn't exist, create one:
 
 ```powershell
-aws ec2 create-key-pair --key-name sarowar-ostad-mumbai `
+aws ec2 create-key-pair --key-name sarowar-own `
   --query "KeyMaterial" --output text `
-  --profile sarowar-ostad --region ap-south-1 > sarowar-ostad-mumbai.pem
+  --profile sarowar-own --region ap-south-1 > sarowar-own.pem
 ```
 
 > **Note:** The key pair is attached as an emergency fallback. Actual access is via SSM Session Manager — no port 22 is opened.
@@ -151,23 +151,23 @@ aws ec2 create-key-pair --key-name sarowar-ostad-mumbai `
 The certificate must already exist in `ap-south-1` (it does — provided in requirements):
 
 ```
-arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0
+arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39
 ```
 
 Verify its status:
 
 ```powershell
 aws acm describe-certificate `
-  --certificate-arn "arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0" `
+  --certificate-arn "arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39" `
   --query "Certificate.Status" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Expected: `ISSUED`
 
 ### 2.5 Required IAM Permissions for the Deploying User
 
-Your `sarowar-ostad` IAM user/role needs permissions for:
+Your `sarowar-own` IAM user/role needs permissions for:
 
 - `ec2:*` (VPC, subnets, SGs, instances, IGW, NAT, route tables, EIP)
 - `elasticloadbalancing:*` (ALB, listeners, target groups)
@@ -219,7 +219,7 @@ VPC: 10.0.0.0/16  (bmi-app-vpc)
 | Backend | bmi-app-backend | private | sg-backend | 20 GB gp3 |
 | Database | bmi-app-db | private | sg-db | 30 GB gp3 |
 
-All instances: `t3.medium`, Ubuntu 24.04 LTS, key pair `sarowar-ostad-mumbai`, IAM profile with `AmazonSSMManagedInstanceCore`.
+All instances: `t3.medium`, Ubuntu 24.04 LTS, key pair `sarowar-own`, IAM profile with `AmazonSSMManagedInstanceCore`.
 
 ---
 
@@ -293,10 +293,9 @@ deploy/
 13. ALB (internet-facing, both public subnets) → waits for `active`
 14. HTTP:80 listener → 301 redirect to HTTPS:443
 15. HTTPS:443 listener with ACM cert → default: Frontend TG; path rules `/api/*` and `/health` → Backend TG
-16. Route53 hosted zone for `ostaddevops.click`
-17. Route53 A alias record: `bmi.ostaddevops.click → ALB`
-18. Saves all resource IDs to `deploy/aws-deploy-state.json`
-19. Prints summary with private IPs, ALB DNS, Route53 NS records, and next steps
+16. Route53 A alias record: `bmi.sarowar.xyz → ALB` (in the existing `sarowar.xyz` hosted zone)
+17. Saves all resource IDs to `deploy/aws-deploy-state.json`
+18. Prints summary with private IPs, ALB DNS, and next steps
 
 ### 6.2 Running the Script
 
@@ -315,8 +314,8 @@ The script will run for approximately **8–12 minutes** (most of the time is wa
 ```
 ============================================================
   BMI 3-Tier App — AWS Infrastructure Deployment
-  Region : ap-south-1   Profile : sarowar-ostad
-  Domain : bmi.ostaddevops.click
+  Region : ap-south-1   Profile : sarowar-own
+  Domain : bmi.sarowar.xyz
 ============================================================
 
 ==> [1/13] Fetching Ubuntu 24.04 LTS AMI...
@@ -334,9 +333,8 @@ The script will run for approximately **8–12 minutes** (most of the time is wa
 
 ... (steps 7–12) ...
 
-==> [13/13] Creating Route53 hosted zone and A record...
-    [OK] Hosted zone: /hostedzone/ZXXXXXXXXXX
-    [OK] Route53 alias: bmi.ostaddevops.click → bmi-app-alb-xxxxxxxxx.ap-south-1.elb.amazonaws.com
+==> [13/13] Creating Route53 A alias record...
+    [OK] Route53 alias: bmi.sarowar.xyz → bmi-app-alb-xxxxxxxxx.ap-south-1.elb.amazonaws.com
 
 ==============================================================
   DEPLOYMENT COMPLETE
@@ -350,14 +348,10 @@ The script will run for approximately **8–12 minutes** (most of the time is wa
   ALB DNS:
     bmi-app-alb-123456789.ap-south-1.elb.amazonaws.com
 
-  Route53 Hosted Zone: /hostedzone/ZXXXXXXXXXX
+  Route53 Hosted Zone: /hostedzone/Z0323767S1I25TB7Y1AT (pre-existing)
 
-  !!! UPDATE YOUR DOMAIN REGISTRAR for ostaddevops.click !!!
-  Set these 4 NS records at your registrar:
-      ns-xxx.awsdns-xx.com
-      ns-xxx.awsdns-xx.net
-      ns-xxx.awsdns-xx.org
-      ns-xxx.awsdns-xx.co.uk
+  Next Steps:
+  1. DNS is live — bmi.sarowar.xyz already points to the ALB
 ```
 
 ### 6.4 Note the Critical Values
@@ -370,7 +364,6 @@ Write these down — you need them for subsequent steps:
 | Backend Instance ID | `i-0bbbb` | SSM Session Manager |
 | Frontend Instance ID | `i-0aaaa` | SSM Session Manager |
 | DB Instance ID | `i-0cccc` | SSM Session Manager |
-| Route53 NS Records (4) | `ns-xxx.awsdns-xx.com` | Domain registrar |
 
 ---
 
@@ -409,7 +402,7 @@ Write these down — you need them for subsequent steps:
 
 ```powershell
 aws ssm start-session --target i-0cccc `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Replace `i-0cccc` with the actual DB instance ID from the PowerShell output.
@@ -427,7 +420,7 @@ aws ssm send-command `
     'export DB_PASSWORD=''YourStr0ngP@ssword''',
     'sudo -E bash /tmp/DB-auto.sh 2>&1 | tee /tmp/db-setup.log'
   ]" `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Then check the output:
@@ -436,7 +429,7 @@ aws ssm get-command-invocation `
   --command-id "<command-id from above>" `
   --instance-id "i-0cccc" `
   --query "StandardOutputContent" --output text `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 #### Alternative — Paste into Session Manager shell
@@ -539,7 +532,7 @@ Indexes:
    NODE_ENV=production
    PORT=3000
    DATABASE_URL=postgresql://bmi_user:<password>@<db-ip>:5432/bmidb
-   FRONTEND_URL=https://bmi.ostaddevops.click
+   FRONTEND_URL=https://bmi.sarowar.xyz
    ```
 9. Creates `logs/` directory
 10. Starts app with `pm2 start ecosystem.config.js` (uses `ecosystem.config.js` from the repo)
@@ -553,7 +546,7 @@ Same process as DB EC2, using the backend instance ID:
 
 ```powershell
 aws ssm start-session --target i-0bbbb `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 ### 8.3 Running the Script
@@ -665,7 +658,7 @@ Log files are stored at:
 
 ```powershell
 aws ssm start-session --target i-0aaaa `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 ### 9.3 Running the Script
@@ -721,7 +714,7 @@ nginx: configuration file /etc/nginx/nginx.conf test is successful
 
   React app served by Nginx on : 10.0.2.10:80
   Build directory              : /opt/bmi-app/frontend/dist
-  Final URL                    : https://bmi.ostaddevops.click
+  Final URL                    : https://bmi.sarowar.xyz
 ```
 
 ### 9.5 Why There Is No /api Proxy in Nginx
@@ -729,7 +722,7 @@ nginx: configuration file /etc/nginx/nginx.conf test is successful
 In development, `vite.config.js` proxies `/api` to `localhost:3000`. In production, this proxy is not used because:
 
 1. The built React app (in `dist/`) makes API calls to `/api` (relative URL)
-2. The browser sends these requests to `https://bmi.ostaddevops.click/api/...`
+2. The browser sends these requests to `https://bmi.sarowar.xyz/api/...`
 3. The ALB intercepts at `/api/*` rule → routes to the **Backend EC2 directly** on port 3000
 4. The Frontend EC2 (Nginx) never sees `/api` requests in production
 
@@ -739,45 +732,33 @@ This is cleaner, more efficient, and keeps a clear separation between the fronte
 
 ## 10. Phase 5 — Domain & DNS Configuration
 
-### 10.1 Update Domain Registrar NS Records
+### 10.1 Route53 Hosted Zone
 
-The PowerShell script creates a Route53 hosted zone for `ostaddevops.click` and prints 4 nameservers. You must point your domain registrar to these nameservers.
+The PowerShell script does not create a hosted zone. It adds the `bmi.sarowar.xyz` A alias record to the existing `sarowar.xyz` hosted zone (`Z0323767S1I25TB7Y1AT`), so no registrar NS changes are needed.
 
-**Where to find them** (if you missed the output):
+**Confirm the hosted zone and its nameservers:**
 
 ```powershell
-$hz = aws route53 list-hosted-zones --query "HostedZones[?Name=='ostaddevops.click.'].Id" `
-  --output text --profile sarowar-ostad
-aws route53 get-hosted-zone --id $hz --query "DelegationSet.NameServers" `
-  --output table --profile sarowar-ostad
+aws route53 get-hosted-zone --id Z0323767S1I25TB7Y1AT `
+  --query "DelegationSet.NameServers" `
+  --output table --profile sarowar-own
 ```
 
-**At your domain registrar** (wherever you registered `ostaddevops.click`):
-
-1. Log in to your registrar's DNS management panel
-2. Find the NS (Nameserver) records for `ostaddevops.click`
-3. Replace existing NS records with the 4 Route53 nameservers, e.g.:
-   ```
-   ns-1234.awsdns-56.com
-   ns-789.awsdns-01.net
-   ns-234.awsdns-78.org
-   ns-567.awsdns-90.co.uk
-   ```
-4. Save changes
+The domain registrar for `sarowar.xyz` must already use these nameservers.
 
 ### 10.2 DNS Propagation
 
 - Changes propagate globally in **5 minutes to 48 hours** depending on the registrar's TTL
 - Typical time with most registrars: **15–60 minutes**
-- Check propagation status: https://dnschecker.org — search for `bmi.ostaddevops.click`
+- Check propagation status: https://dnschecker.org — search for `bmi.sarowar.xyz`
 
 ### 10.3 Verify Route53 Record
 
 ```powershell
 aws route53 list-resource-record-sets `
-  --hosted-zone-id <zone-id> `
-  --query "ResourceRecordSets[?Name=='bmi.ostaddevops.click.']" `
-  --profile sarowar-ostad
+  --hosted-zone-id Z0323767S1I25TB7Y1AT `
+  --query "ResourceRecordSets[?Name=='bmi.sarowar.xyz.']" `
+  --profile sarowar-own
 ```
 
 ---
@@ -793,7 +774,7 @@ aws ssm describe-instance-information `
   --filters "Key=tag:Name,Values=bmi-app-frontend,bmi-app-backend,bmi-app-db" `
   --query "InstanceInformationList[].{ID:InstanceId,Ping:PingStatus,Agent:AgentVersion}" `
   --output table `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Expected: All 3 show `PingStatus: Online`
@@ -806,14 +787,14 @@ aws elbv2 describe-target-health `
   --target-group-arn "<tg-frontend-arn from state file>" `
   --query "TargetHealthDescriptions[].{ID:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}" `
   --output table `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Backend Target Group health
 aws elbv2 describe-target-health `
   --target-group-arn "<tg-backend-arn from state file>" `
   --query "TargetHealthDescriptions[].{ID:Target.Id,State:TargetHealth.State,Reason:TargetHealth.Reason}" `
   --output table `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 Expected: Both show `State: healthy`
@@ -836,21 +817,21 @@ curl -k "https://<alb-dns>/health"
 
 ```powershell
 # Health check
-Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/health"
+Invoke-RestMethod -Uri "https://bmi.sarowar.xyz/health"
 # Expected: @{status=ok; environment=production}
 
 # API — create a measurement
-Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/api/measurements" -Method POST `
+Invoke-RestMethod -Uri "https://bmi.sarowar.xyz/api/measurements" -Method POST `
   -ContentType "application/json" `
   -Body '{"weightKg":75,"heightCm":175,"age":30,"sex":"male","activity":"moderate"}'
 # Expected: 201 response with measurement data including bmi, bmiCategory, bmr, dailyCalories
 
 # API — retrieve measurements
-Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/api/measurements"
+Invoke-RestMethod -Uri "https://bmi.sarowar.xyz/api/measurements"
 # Expected: {"rows":[...]}
 
 # API — BMI trends
-Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/api/measurements/trends"
+Invoke-RestMethod -Uri "https://bmi.sarowar.xyz/api/measurements/trends"
 # Expected: {"rows":[...]}
 ```
 
@@ -858,19 +839,19 @@ Invoke-RestMethod -Uri "https://bmi.ostaddevops.click/api/measurements/trends"
 
 ```powershell
 # Should get a 301 redirect, not content
-Invoke-WebRequest -Uri "http://bmi.ostaddevops.click" -MaximumRedirection 0 -ErrorAction SilentlyContinue |
+Invoke-WebRequest -Uri "http://bmi.sarowar.xyz" -MaximumRedirection 0 -ErrorAction SilentlyContinue |
   Select-Object StatusCode, Headers
-# Expected: StatusCode 301, Location header: https://bmi.ostaddevops.click/
+# Expected: StatusCode 301, Location header: https://bmi.sarowar.xyz/
 ```
 
 ### 11.6 Browser Test
 
-1. Open `http://bmi.ostaddevops.click` — should auto-redirect to HTTPS
+1. Open `http://bmi.sarowar.xyz` — should auto-redirect to HTTPS
 2. Check for padlock icon (valid TLS certificate)
 3. Enter BMI data and click **Save** — record should appear in the list
 4. Submit 2–3 measurements on different dates
 5. Scroll down to the trend chart — it shows 30-day BMI trend
-6. Verify the Certificate details in the browser: issued for `bmi.ostaddevops.click`
+6. Verify the Certificate details in the browser: issued for `bmi.sarowar.xyz`
 
 ---
 
@@ -882,8 +863,8 @@ Invoke-WebRequest -Uri "http://bmi.ostaddevops.click" -MaximumRedirection 0 -Err
 1. User fills in the form in the browser
 2. React's MeasurementForm.jsx calls:
    POST /api/measurements  { weightKg, heightCm, age, sex, activity, measurementDate }
-3. Browser sends request to https://bmi.ostaddevops.click/api/measurements
-4. Route53 resolves bmi.ostaddevops.click → ALB
+3. Browser sends request to https://bmi.sarowar.xyz/api/measurements
+4. Route53 resolves bmi.sarowar.xyz → ALB
 5. ALB receives HTTPS:443, terminates TLS using ACM cert
 6. ALB checks listener rules:
    - /api/* matches priority-10 rule → forwards to Backend Target Group (port 3000)
@@ -900,12 +881,12 @@ Invoke-WebRequest -Uri "http://bmi.ostaddevops.click" -MaximumRedirection 0 -Err
 ### 12.2 What Happens When a User Loads the App
 
 ```
-1. Browser requests https://bmi.ostaddevops.click/
+1. Browser requests https://bmi.sarowar.xyz/
 2. ALB default rule forwards to Frontend Target Group (port 80)
 3. Nginx on Frontend EC2 serves /opt/bmi-app/frontend/dist/index.html
 4. Browser loads React JS bundle (served from same Nginx)
 5. React App.jsx mounts, calls GET /api/measurements
-6. Browser sends request to https://bmi.ostaddevops.click/api/measurements
+6. Browser sends request to https://bmi.sarowar.xyz/api/measurements
 7. ALB routes /api/* → Backend → PostgreSQL → returns rows
 8. React renders the measurement list and stats
 9. React TrendChart.jsx calls GET /api/measurements/trends
@@ -919,7 +900,7 @@ Invoke-WebRequest -Uri "http://bmi.ostaddevops.click" -MaximumRedirection 0 -Err
 | `NODE_ENV` | `production` | Enables production CORS (uses `FRONTEND_URL`) |
 | `PORT` | `3000` | Express listen port |
 | `DATABASE_URL` | `postgresql://bmi_user:<pw>@<db-ip>:5432/bmidb` | pg connection pool |
-| `FRONTEND_URL` | `https://bmi.ostaddevops.click` | CORS allowed origin |
+| `FRONTEND_URL` | `https://bmi.sarowar.xyz` | CORS allowed origin |
 
 ---
 
@@ -932,14 +913,14 @@ No port 22 is open on any instance. Use SSM Session Manager:
 ```powershell
 # Interactive shell on any instance
 aws ssm start-session --target <instance-id> `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 
 # Run a one-off command
 aws ssm send-command `
   --instance-ids "<instance-id>" `
   --document-name "AWS-RunShellScript" `
   --parameters "commands=['pm2 status']" `
-  --profile sarowar-ostad --region ap-south-1 `
+  --profile sarowar-own --region ap-south-1 `
   --query "Command.CommandId" --output text
 ```
 
@@ -1071,32 +1052,31 @@ You will be prompted to type `yes` to confirm.
 
 ### Teardown Order (Reverse of Creation)
 
-1. Delete Route53 A alias record
-2. Delete Route53 hosted zone
-3. Delete ALB listeners (HTTP + HTTPS)
-4. Delete ALB → wait for deletion
-5. Delete Target Groups (Frontend + Backend)
-6. Terminate EC2 instances → wait for termination
-7. Remove role from instance profile → delete instance profile → detach policy → delete IAM role
-8. Delete NAT Gateway → wait for deletion
-9. Release Elastic IP
-10. Disassociate route table associations
-11. Delete public and private route tables
-12. Delete all 3 subnets
-13. Delete security groups (DB → Backend → Frontend → ALB order)
-14. Detach + delete Internet Gateway
-15. Delete VPC
-16. Remove `aws-deploy-state.json`
+1. Delete Route53 A alias record (the hosted zone is kept)
+2. Delete ALB listeners (HTTP + HTTPS)
+3. Delete ALB → wait for deletion
+4. Delete Target Groups (Frontend + Backend)
+5. Terminate EC2 instances → wait for termination
+6. Remove role from instance profile → delete instance profile → detach policy → delete IAM role
+7. Delete NAT Gateway → wait for deletion
+8. Release Elastic IP
+9. Disassociate route table associations
+10. Delete public and private route tables
+11. Delete all 3 subnets
+12. Delete security groups (DB → Backend → Frontend → ALB order)
+13. Detach + delete Internet Gateway
+14. Delete VPC
+15. Remove `aws-deploy-state.json`
 
 > **Estimated teardown time:** ~8 minutes (mostly waiting for NAT Gateway deletion)
 
 ### What Teardown Does NOT Remove
 
 - The ACM certificate (it was pre-existing, not created by this script)
-- The `sarowar-ostad-mumbai` key pair
+- The `sarowar-own` key pair
 - The AWS CLI named profile
 - Any data in S3 or other services
-- The domain registration at your registrar (NS records remain until you manually revert them)
+- The `sarowar.xyz` hosted zone and its registrar NS records (pre-existing)
 
 ---
 
@@ -1111,7 +1091,7 @@ You will be prompted to type `yes` to confirm.
 # Check instance SSM status
 aws ssm describe-instance-information `
   --filters "Key=InstanceIds,Values=<instance-id>" `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
 If empty: wait 3 more minutes, then check the EC2 instance is running. Verify the IAM instance profile `bmi-ssm-profile` is attached to the instance.
@@ -1167,19 +1147,19 @@ systemctl restart nginx
 
 ---
 
-### Problem: `https://bmi.ostaddevops.click` shows "This site can't be reached"
+### Problem: `https://bmi.sarowar.xyz` shows "This site can't be reached"
 
-**Cause:** DNS not propagated yet, or NS records not updated at registrar.
+**Cause:** DNS not propagated yet, or the A record points to a different ALB.
 
 **Fix:**
 ```powershell
 # Check current NS for the domain
-nslookup -type=NS ostaddevops.click
+nslookup -type=NS sarowar.xyz
 
 # Check if Route53 A record exists
-aws route53 list-resource-record-sets --hosted-zone-id <zone-id> `
-  --query "ResourceRecordSets[?Name=='bmi.ostaddevops.click.']" `
-  --profile sarowar-ostad
+aws route53 list-resource-record-sets --hosted-zone-id Z0323767S1I25TB7Y1AT `
+  --query "ResourceRecordSets[?Name=='bmi.sarowar.xyz.']" `
+  --profile sarowar-own
 
 # Test directly via ALB DNS (bypasses DNS propagation)
 curl -k https://<alb-dns>/health
@@ -1189,17 +1169,17 @@ curl -k https://<alb-dns>/health
 
 ### Problem: Certificate warning in browser
 
-**Cause:** ACM cert may not cover `bmi.ostaddevops.click` (check SAN) or DNS is pointing to a different endpoint.
+**Cause:** ACM cert may not cover `bmi.sarowar.xyz` (check SAN) or DNS is pointing to a different endpoint.
 
 **Fix:**
 ```powershell
 aws acm describe-certificate `
-  --certificate-arn "arn:aws:acm:ap-south-1:388779989543:certificate/c5e5f2a5-c678-4799-b355-765c13584fe0" `
+  --certificate-arn "arn:aws:acm:ap-south-1:522632170425:certificate/f81f7bd1-4717-4558-97f4-231d4f005a39" `
   --query "Certificate.{Status:Status,Domains:DomainValidationOptions[].DomainName}" `
-  --profile sarowar-ostad --region ap-south-1
+  --profile sarowar-own --region ap-south-1
 ```
 
-The cert must show `ISSUED` status and list `bmi.ostaddevops.click` in Domains.
+The cert must show `ISSUED` status and list `bmi.sarowar.xyz` in Domains.
 
 ---
 
